@@ -15,7 +15,9 @@ function decodeAuditHeader(r) {
         var auditData = JSON.parse(decodedString);
 
         if (auditData && auditData.SignedData && auditData.SignedData.PartnerName) {
-            r.return(200, auditData.SignedData.PartnerName);
+            // Now that we have the PartnerName, we make a subrequest
+            var partnerName = auditData.SignedData.PartnerName;
+            makeSubrequest(r, partnerName);
         } else {
             r.return(400, "Invalid Audit data");
         }
@@ -24,6 +26,23 @@ function decodeAuditHeader(r) {
         // Add logging
         r.error(`Error: ${e.message}`);
     }
+}
+
+function makeSubrequest(r, partnerName) {
+    // Construct the URL for the external website
+    var url = `/external-service/?q=${partnerName}`;
+
+    // Make the subrequest
+    r.subrequest(url, function(res) {
+        // Check if the subrequest was successful
+        if (res.status === 200) {
+            // Return the body of the subrequest response
+            r.return(200, res.responseBody);
+        } else {
+            // Handle errors or non-200 status codes
+            r.return(res.status, `Subrequest failed: ${res.responseBody}`);
+        }
+    });
 }
 
 export default {decodeAuditHeader};
